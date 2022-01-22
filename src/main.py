@@ -1,5 +1,6 @@
 import numpy as np
 import networkx as nx
+import matplotlib.pyplot as plt
 
 S = 5
 
@@ -39,11 +40,23 @@ def main(velos_par_station_0, velos_par_trajet_0, lambd, mu, routage):
         tau = temps_d_attente(velos_par_station, velos_par_trajet, lambd, mu)
         t.append(t[-1] + tau)
         nouvel_etat(velos_par_station, velos_par_trajet, lambd, mu, routage)
+    
+    visualisation(velos_par_station, velos_par_trajet)
 
-def visualisation():
+def visualisation(velos_par_station, velos_par_trajet):
     G = nx.complete_graph(5)
+    options = {
+    "node_color": velos_par_station,
+    "edge_color": [velos_par_trajet[i,j] for (i,j) in G.edges],
+    "width": 4,
+    "node_cmap": plt.cm.Wistia,
+    "edge_cmap": plt.cm.Wistia,
+    "with_labels": True,
+    }
+    nx.draw(G, **options)
+    plt.show()  
     ## a completer
-    ## colorer sommets et arret selon le nombre de velibs
+    ## ajouter colorbar et nombre d'élément dans chaque
 
 if __name__ =="__main__":
     # On choisit de prendre comme unite de temps la minute
