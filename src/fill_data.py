@@ -3,9 +3,10 @@ import numpy as np
 if __name__ == "__main__":
 
     temps_moyen_par_traj = np.array([[0, 3, 5, 7, 7], 
-                                    [2, 0, 2, 5, 5],
+                                     [2, 0, 2, 5, 5],
                                      [4, 2, 0, 3, 3], 
-                                     [8, 6, 4, 0, 2]])
+                                     [8, 6, 4, 0, 2],
+                                     [7, 7, 5, 2, 0]])
 
     tx_depart_a_lheure =  np.array([2.8, 3.7, 5.5, 3.5, 4.6])
 
@@ -18,10 +19,10 @@ if __name__ == "__main__":
     velos_par_station_initial = np.array([20, 15, 17, 13, 18])
 
     velos_par_trajet_initial = np.array([[0, 1, 0, 0, 0],
-                                [[1, 0, 1, 0, 0],
+                                [1, 0, 1, 0, 0],
                                 [0, 1, 0, 1, 0],
                                 [0, 0, 1, 0, 1],
-                                [0, 0, 0, 1, 0]]])
+                                [0, 0, 0, 1, 0]])
 
     np.save("data/temps_moyen_par_trajet.npy", temps_moyen_par_traj)
     np.save("data/taux_depart_a_l_heure.npy", tx_depart_a_lheure)
