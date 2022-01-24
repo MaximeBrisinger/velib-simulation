@@ -4,7 +4,7 @@ Ce code simule un systeme de velib à 5 stations. Deux cas d'études sont envisa
     - Un seul vélo est présent dans le système.
     - 91 vélos sont présents dans le systèmes
 
-## Exectution du code
+## Execution du code
 
 Deux modes d'exécution sont disponibles :
 
