@@ -10,11 +10,11 @@ Deux modes d'exécution sont disponibles :
 
 - Pour l'étude du cas à un seul vélo : exécuter dans un terminal après s'être placé dans le dossier src
 
-        `python3 main.py -i 1_velo`
+        python3 main.py -i 1_velo
 
 - Pour l'étude du cas réel :
 
-        `python3 main.py -i donnees`
+        python3 main.py -i donnees
 
 ## Fichiers de codes
 
