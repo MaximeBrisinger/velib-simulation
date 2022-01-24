@@ -1,8 +1,9 @@
 # velib-simulation
 
 Ce code simule un systeme de velib à 5 stations. Deux cas d'études sont envisagés :
-    - Un seul vélo est présent dans le système.
-    - 91 vélos sont présents dans le systèmes
+
+- Un seul vélo est présent dans le système.
+- 91 vélos sont présents dans le système.
 
 ## Execution du code
 
