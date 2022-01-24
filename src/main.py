@@ -12,12 +12,37 @@ plt.rc('xtick', labelsize=15)
 S = 5
 
 def temps_d_attente(velos_par_station, velos_par_trajet, lambd, mu):
-    """renvoie le temps d'attente avant le prochain changement d'état"""
+    """ Tirage du temps d'attente avant le prochain changement d'état
+
+    Args:
+        velos_par_station (array numpy de dimension 1): vecteur ligne représentant le nombre de vélos par station
+        velos_par_trajet (array numpy de dimension 2): matrice représentant le nombre de vélos par station
+        lambd (array numpy de dimension 1): intensité des lois exponentielles de départ des stations
+        mu (array numpy de dimension 2): intensité des lois exponentielles de réalisation des trajet 
+
+    Returns:
+        tau (float): temps d'attente avant prochain changement d'état
+    """
+
     Qnn = np.sum(np.where(velos_par_station > 0, 1, 0) * lambd.reshape(velos_par_station.shape)) + np.sum(velos_par_trajet * mu)
     return np.random.exponential(scale=1/Qnn)
 
 def nouvel_etat(velos_par_station, velos_par_trajet, lambd, mu, routage, verbose):
-    """transforme localement les array velos par station, velo_par_trajet"""
+    """ Tire le prochain état du système
+
+    Args:
+        velos_par_station (array numpy de dimension 1): vecteur ligne représentant le nombre de vélos par station
+        velos_par_trajet (array numpy de dimension 2): matrice représentant le nombre de vélos par station
+        lambd (array numpy de dimension 1): intensité des lois exponentielles de départ des stations
+        mu (array numpy de dimension 2): intensité des lois exponentielles de réalisation des trajet 
+        routage (array numpy de dimension 2): matrice de routage entre les stations
+        verbose (bool): Indique si les changements d'états doivent être affichés. Defaults to True.
+
+    Returns:
+        ()
+
+    Modification locale de velos_par_station et de velos_par_trajet
+    """
     poids = np.concatenate([(np.where(velos_par_station > 0, 1, 0) * lambd.reshape(velos_par_station.shape)).flatten(), (velos_par_trajet * mu).flatten()])
     transfo = np.random.choice(poids.size, p=poids/np.sum(poids))
 
@@ -38,7 +63,23 @@ def nouvel_etat(velos_par_station, velos_par_trajet, lambd, mu, routage, verbose
             print(f"Un velo arrive en {arrivee} depuis {depart}")
 
 def main(velos_par_station_0, velos_par_trajet_0, lambd, mu, routage, verbose=True, estim_remplissage=False, itermax=100):
+    """ Simulation du système
 
+    Args:
+        velos_par_station_0 (array numpy de dimension 1): vecteur ligne représentant le nombre de vélos par station initial
+        velos_par_trajet_0 (array numpy de dimension 2): matrice représentant le nombre de vélos par station initial
+        lambd (array numpy de dimension 1): intensité des lois exponentielles de départ des stations
+        mu (array numpy de dimension 2): intensité des lois exponentielles de réalisation des trajet 
+        routage (array numpy de dimension 2): matrice de routage entre les stations
+        verbose (bool, optional): Indique si les changements d'états doivent être affichés. Defaults to True.
+        estim_remplissage (bool, optional): Indique si l'on calcule la matrice des remplissages cumulés. Defaults to False.
+        itermax (int, optional): nombr d'itérations maximal. Defaults to 100.
+
+    Returns:
+        Si estim_remplissage :
+            t (liste) : liste des dates de changements d'états
+            remplissages (array numpy de dimension 2) : stocke la somme des remplissages de stations pondérées par le temps pour chaque station
+    """    
     velos_par_station = np.copy(velos_par_station_0)
     velos_par_trajet = np.copy(velos_par_trajet_0)
     n_iter = 0
@@ -75,7 +116,17 @@ def visualisation(velos_par_station, velos_par_trajet):
     plt.show()
 
 def proba_stationnaire_1_velo(routage, lambd, mu):
-    """ calcule la probabilité stationnaire dans le cas à un seul vélo"""
+    """ Calcule la probabilité stationnaire dans le cas à un seul vélo
+
+    Args:
+        routage (array numpy de dimension 2): matrice de routage entre les stations
+        lambd (array numpy de dimension 2): intensités des processus de Poisson de départ des stations
+        mu (array numpy de dimension 2): intensités des lois exponentielles de réalisation des temps de trajet  
+
+    Returns:
+        pi (array numpy de dimension 1): probabilite stationnaire du systeme à un seul velo
+    """
+
     A = np.zeros((S**2 + S, S**2 + S))
 
     for i in range(S):
@@ -111,7 +162,7 @@ def proba_stationnaire_1_velo(routage, lambd, mu):
 if __name__ =="__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--initial", help="conditions initiales",
+    parser.add_argument("-i", "--initial", help="conditions initiales (un seul velo ou donnees de l'énoncé",
                         choices=["1_velo", "donnees"], default="donnees")
     args = parser.parse_args()
     conditions_initiales = args.initial
@@ -132,13 +183,11 @@ if __name__ =="__main__":
 
         t, remplissages = main(velos_par_station_0, velos_par_trajet_0, lambd, mu, routage, verbose=verbose, estim_remplissage=estim_remplissage, itermax=itermax)
 
-    
+        # remplissage moyen des stations
         fig1, ax1 = plt.subplots(1, 1, figsize=(12, 5))
         height = remplissages[-1, :] / t[-1]     
         bars = ["Station "+ str(i) for i in range(S)]
         x_pos = np.arange(len(bars))
-
-        # Create bars
         ax1.bar(x_pos, height)
         ax1.set_xticks(x_pos)
         ax1.set_xticklabels(bars)
@@ -146,6 +195,7 @@ if __name__ =="__main__":
         ax1.set_title(r"Remplissage moyen des stations après " + str(round(t[-1] / (24 * 60),1)) + " jours")
         ax1.grid(True)
    
+        # proba de vacuite des stations
         temps_vacuite = np.array([t[i] - t[i-1] for i in range(1, len(t))]).reshape(1, -1) @ np.where(remplissages[1:] - remplissages[:-1]  == 0, 1, 0)
         proba_vacuite = temps_vacuite / t[-1]
         fig3, ax3 = plt.subplots(1, 1, figsize=(12, 5))
@@ -170,17 +220,14 @@ if __name__ =="__main__":
         verbose = False
         itermax=10000#00
 
-        fig1, ax1 = plt.subplots(1, 1, figsize=(12, 5))
 
+        #Probabilite stationnaire
+        fig1, ax1 = plt.subplots(1, 1, figsize=(12, 5))
         height = np.zeros(S+1)
         height[:S] = pi[:S]
         height[-1] = np.sum(pi[S:])
-
-        
         bars = ["Station "+ str(i) for i in range(S)] + ["En trajet"]
         x_pos = np.arange(len(bars))
-
-        # Create bars
         ax1.bar(x_pos, height)
         ax1.set_xticks(x_pos)
         ax1.set_xticklabels(bars)
@@ -188,14 +235,12 @@ if __name__ =="__main__":
         ax1.set_title(r"Probablilité stationnaire $\pi$")
         ax1.grid(True)
 
+        # Probabilite de vacuite
         fig3, ax3 = plt.subplots(1, 1, figsize=(12, 5))
-
         height = np.zeros(S)
         height[:S] = 1 - pi[:S]
-        
         bars = ["Station "+ str(i) for i in range(S)]
         x_pos = np.arange(len(bars))
-        # Create bars
         ax3.bar(x_pos, height)
         ax3.set_xticks(x_pos)
         ax3.set_xticklabels(bars)
@@ -203,16 +248,15 @@ if __name__ =="__main__":
         ax3.set_title(r"Probablilités de vacuité des stations $1 - \pi$")
         ax3.grid(True)
 
+        # Etude de la vitesse de convergence
         fig2, ax2 = plt.subplots(1, 1, figsize=(15, 8))
         for i in range(10):
             t, remplissages = main(velos_par_station_0, velos_par_trajet_0, lambd, mu, routage, verbose=verbose, estim_remplissage=estim_remplissage, itermax=itermax)
             x = np.log10(np.array(t[1:]))
             y = np.log10(np.array([np.linalg.norm(pi[:S] - remplissages[i] / t[i]) for i in range(1, len(t))]))
             ax2.plot(x,y, label=f"simulation {i}")
-        
         reg = LinearRegression(fit_intercept=True)
         reg.fit(x.reshape(-1, 1), y)
-
         ax2.plot(x[[0, -1]], reg.predict(x[[0, -1]].reshape(-1, 1)), linewidth=2, color = "black", label=r"approximation linéaire : $||\pi -\hat{\pi}||_2 = T^{" + str(round(reg.coef_[0], 2)) + "} + " + str(round(reg.intercept_, 2)) + "$")
         ax2.set_ylabel(r"$\log_{10}(||\pi -\hat{\pi}||_2)$")
         ax2.set_xlabel(r"$\log_{10}(T)$")
@@ -220,6 +264,7 @@ if __name__ =="__main__":
         ax2.set_title(r"Evolution de l'écart entre $\pi$ et $\hat{\pi}$ en échelle logarithmique")
         ax2.legend()
 
+        # Deuxieme calcul dec la proba de vacuite (pour corroborer la méthode de calcul) 
         t, remplissages = main(velos_par_station_0, velos_par_trajet_0, lambd, mu, routage, verbose=verbose, estim_remplissage=estim_remplissage, itermax=itermax)        
         temps_vacuite = np.array([t[i] - t[i-1] for i in range(1, len(t))]).reshape(1, -1) @ np.where(remplissages[1:] - remplissages[:-1]  == 0, 1, 0)
         proba_vacuite = temps_vacuite / t[-1]
