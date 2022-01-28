@@ -2,6 +2,7 @@ import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
 import argparse
+from torch import linalg
 from tqdm import tqdm
 from sklearn.linear_model import LinearRegression
 plt.rc('legend', fontsize=10)
@@ -87,7 +88,7 @@ def main(velos_par_station_0, velos_par_trajet_0, lambd, mu, routage, verbose=Tr
         t = [0]
         remplissages = np.zeros((itermax+1, S))
     
-    for n_iter in tqdm(range(itermax)):
+    for n_iter in tqdm(range(itermax), leave=False):
         tau = temps_d_attente(velos_par_station, velos_par_trajet, lambd, mu)
         
         if estim_remplissage:
@@ -163,7 +164,7 @@ if __name__ =="__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--initial", help="conditions initiales (un seul velo ou donnees de l'énoncé",
-                        choices=["1_velo", "donnees"], default="donnees")
+                        choices=["1_velo", "donnees", "confidence", "etude_stationnaire"], default="donnees")
     args = parser.parse_args()
     conditions_initiales = args.initial
 
@@ -250,7 +251,7 @@ if __name__ =="__main__":
 
         # Etude de la vitesse de convergence
         fig2, ax2 = plt.subplots(1, 1, figsize=(15, 8))
-        for i in range(10):
+        for i in range(1):
             t, remplissages = main(velos_par_station_0, velos_par_trajet_0, lambd, mu, routage, verbose=verbose, estim_remplissage=estim_remplissage, itermax=itermax)
             x = np.log10(np.array(t[1:]))
             y = np.log10(np.array([np.linalg.norm(pi[:S] - remplissages[i] / t[i]) for i in range(1, len(t))]))
@@ -264,7 +265,7 @@ if __name__ =="__main__":
         ax2.set_title(r"Evolution de l'écart entre $\pi$ et $\hat{\pi}$ en échelle logarithmique")
         ax2.legend()
 
-        # Deuxieme calcul dec la proba de vacuite (pour corroborer la méthode de calcul) 
+        # Deuxieme calcul de la proba de vacuite (pour corroborer la méthode de calcul) 
         t, remplissages = main(velos_par_station_0, velos_par_trajet_0, lambd, mu, routage, verbose=verbose, estim_remplissage=estim_remplissage, itermax=itermax)        
         temps_vacuite = np.array([t[i] - t[i-1] for i in range(1, len(t))]).reshape(1, -1) @ np.where(remplissages[1:] - remplissages[:-1]  == 0, 1, 0)
         proba_vacuite = temps_vacuite / t[-1]
@@ -279,6 +280,50 @@ if __name__ =="__main__":
         ax4.set_title(r"Probablilités de vacuité des stations obtenues par simulation après " + str(round(t[-1] / (24 * 60),1)) + " jours")
         ax4.grid(True)
 
-
+        print("Comparaison des methodes de calul de la proba de vacuité :", np.linalg.norm(proba_vacuite.flatten() - (1 - remplissages[-1]/ t[-1]).flatten() ))
 
         plt.show()
+
+    elif conditions_initiales == "confidence":
+        velos_par_station_0 = np.load("data/velos_par_station_initial.npy", allow_pickle=True)
+        velos_par_trajet_0 = np.load("data/velos_par_trajet_initial.npy", allow_pickle=True)
+        verbose = False
+        estim_remplissage = True
+        itermax = 100000
+        n_launch = 100
+        mem_proba_vacuite = np.zeros((n_launch, S))
+
+        for i in tqdm(range(n_launch)):
+
+            t, remplissages = main(velos_par_station_0, velos_par_trajet_0, lambd, mu, routage, verbose=verbose, estim_remplissage=estim_remplissage, itermax=itermax)
+            temps_vacuite = np.array([t[i] - t[i-1] for i in range(1, len(t))]).reshape(1, -1) @ np.where(remplissages[1:] - remplissages[:-1]  == 0, 1, 0)
+            proba_vacuite = temps_vacuite / t[-1]
+            mem_proba_vacuite[i] = proba_vacuite.reshape(1, -1)
+
+        mean = np.mean(mem_proba_vacuite, axis=0)
+
+        sigma2 =  (1 / (n_launch - 1)) * np.sum((mem_proba_vacuite - mean) ** 2, axis=0)
+
+        demi_rayon = 1.96 * np.sqrt(sigma2 / n_launch)
+
+        print("moyenne :", mean)
+        print("incertitude :", demi_rayon)
+
+    elif conditions_initiales == "etude_stationnaire":
+        # equation du transport
+        mat1 = (routage * lambd.reshape(-1, 1)).T - np.diag(lambd)
+        mat2 = (1 + np.sum((routage * np.nan_to_num(1 / mu)) * lambd.reshape(-1, 1), axis=1)).reshape(1, -1)
+        M = np.concatenate((mat1, mat2), axis=0)
+
+        X = np.zeros((M.shape[0], 1))
+        X[-1, 0] = 1
+
+        alpha = np.linalg.lstsq(M, X)[0]
+
+        pi = proba_stationnaire_1_velo(routage, lambd, mu)
+
+        print("Ecart entre les deux methodes", np.linalg.norm(pi[:S].flatten() - alpha.flatten()))
+
+        #alphas_ij = [alpha * lambd[i] * (routage * mu)[i] for i in range(len(lambd))]
+        #alphas = np.diag(alpha) + alphas_ij
+        #print(alphas)
